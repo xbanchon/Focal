@@ -9,15 +9,17 @@ public record ImageResponse(
         String originalFilename,
         String storageUrl,
         String status,
-        Instant createdAt
+        Instant createdAt,
+        String uploadUrl
 ) {
-    public static ImageResponse fromEntity(Image entity){
+    public static ImageResponse fromEntity(Image entity, String uploadUrl){
         return new ImageResponse(
                 entity.getId(),
                 entity.getOriginalFilename(),
                 entity.getStorageUrl(),
                 entity.getStatus().name(),
-                entity.getCreatedAt()
+                entity.getCreatedAt(),
+                uploadUrl
         );
     }
 }

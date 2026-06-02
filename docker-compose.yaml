@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: image-metadata-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: image_metadata
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  rabbitmq:
+    # We use the '-management' tag to get the built-in web UI
+    image: rabbitmq:3-management-alpine
+    container_name: broker-rabbitmq
+    ports:
+      # 5672 is the standard AMQP port for our Java app to connect to
+      - "5672:5672"
+      # 15672 is the web UI port
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: password123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  rabbitmq_data:

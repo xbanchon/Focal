@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: processing-service
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: admin
+    password: password123
+
+  main:
+    web-application-type: none
