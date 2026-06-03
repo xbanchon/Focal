@@ -1,0 +1,23 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: user-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/identity_db
+    username: admin
+    password: password123
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+jwt:
+  secret: "YOUR_SUPER_SECRET_KEY_THAT_MUST_BE_AT_LEAST_256_BITS_LONG_TO_BE_SECURE"
+  expiration-ms: 86400000 # 24 hours
+
+google:
+  client-id: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com" # From Google Cloud Console

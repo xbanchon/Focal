@@ -1,8 +1,8 @@
-package com.xbanchon.processingservice.dto;
+package com.xbanchon.processingservice.event;
 
 import java.util.UUID;
 
-public Record ProcessingCompletedEvent(
+public record ProcessingCompletedEvent(
         UUID imageId,
         UUID userId,
         String finalStorageUrl,

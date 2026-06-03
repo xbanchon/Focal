@@ -1,43 +1,86 @@
 package com.xbanchon.processingservice.listener;
 
-import com.xbanchon.processingservice.dto.ImageProcessingReqEvent;
+import com.xbanchon.processingservice.event.*;
+import com.xbanchon.processingservice.service.ImageProcessingEngine;
+import com.xbanchon.processingservice.service.S3StorageService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class ImageProcessingListener {
+    private final ImageProcessingEngine engine;
+    private final S3StorageService storageService;
+    private final RabbitTemplate rabbitTemplate;
 
-    @RabbitListener
-    public void processImage(ImageProcessingReqEvent event) {
+    @RabbitListener(queues = "image.process.queue")
+    public void processImage(ImageProcessingReqEvent event) throws Exception {
         log.info("Received processing job for Image ID: {} (User: {})", event.imageId(), event.userId());
 
+        Path tempInput = null;
+        Path tempOutput = null;
+
         try {
-            // TODO: 1. Download original raw image from Supabase
-            // TODO: 2. Process/Resize the image using Thumbnailator
-            // TODO: 3. Upload the processed image back to Supabase
-            // TODO: 4. Publish a "Completed" event back to RabbitMQ
+            tempInput = Files.createTempFile("raw_", "_" + event.imageId());
+            tempOutput = Files.createTempFile("processed_", "_" + event.imageId());
+
+            // Download raw file from object storage
+            String rawFileKey = "raw/" + event.imageId();
+            storageService.downloadFile(rawFileKey, tempInput);
+
+            // Execute processing pipeline
+            engine.processImage(
+                    tempInput.toAbsolutePath().toString(),
+                    tempOutput.toAbsolutePath().toString(),
+                    event.processingInstructions()
+            );
+
+            // Upload processed file
+            String processedFileKey = "processed/" + event.imageId();
+            String finalStorageUrl = storageService.uploadFile(processedFileKey, tempOutput, event.mimeType());
+
+            // Notify Image Service
+            sendCompletionEvent(event, finalStorageUrl, true, null);
 
             log.info("Successfully processed image: {}", event.originalFilename());
 
-        } catch (Exception e) {
-            log.error("Failed to process image {}: {}", event.imageId(), e.getMessage());
-            // If an exception is thrown here, RabbitMQ can automatically put the message
-            // back in the queue to retry, or send it to a Dead Letter Queue.
+        } finally { // No catch block to force Spring's retry mechanisms (up to 3 times before routing req to DLQ)
+            deleteTempFile(tempInput);
+            deleteTempFile(tempOutput);
         }
 
-        ProcessingCompletedEvent completedEvent = new ProcessingCompletedEvent(
+    }
+
+    private void sendCompletionEvent(ImageProcessingReqEvent event, String url, boolean success, String error){
+        ProcessingCompletedEvent completionEvent = new ProcessingCompletedEvent(
                 event.imageId(),
-                newSupabaseUrl,
-                true,
-                null
+                event.userId(),
+                url,
+                success,
+                error
         );
 
         rabbitTemplate.convertAndSend(
                 "image.exchange",
                 "image.process.completed",
-                completedEvent
+                completionEvent
         );
+    }
+
+    private void deleteTempFile(Path path) {
+        if (path != null) {
+            try {
+                Files.deleteIfExists(path);
+            } catch (Exception e) {
+                log.warn("Failed to delete temp file: {}", path);
+            }
+        }
     }
 }
