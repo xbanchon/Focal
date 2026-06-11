@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+# Infrastructure
+  postgres:
+    image: postgres:15-alpine
+    container_name: focal-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+    volumes:
+      # Mount the init script to run on first startup
+      - ./docker/init-multiple-databases.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - focal-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: focal-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - "${RABBITMQ_AMQP_PORT}:${RABBITMQ_AMQP_PORT}"
+      - "${RABBITMQ_MGMT_UI_PORT}:${RABBITMQ_MGMT_UI_PORT}"
+    networks:
+      - focal-network
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+# Microservices
+  api-gateway:
+    build: ./api-gateway
+    container_name: focal-gateway
+    ports:
+      - "${API_GATEWAY_PORT}:${API_GATEWAY_PORT}" # Port exposed to frontend
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
+      - USER_MICROSERVICE_PORT=${USER_MICROSERVICE_PORT}
+      - IMAGE_MICROSERVICE_PORT=${IMAGE_MICROSERVICE_PORT}
+    networks:
+      - focal-network
+
+  identity-service:
+    build: ./user-service
+    container_name: focal-identity
+    environment:
+      - USER_MICROSERVICE_PORT=${USER_MICROSERVICE_PORT}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://focal-postgres:${POSTGRES_PORT}/identity_db
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION_MS=${JWT_EXPIRATION_MS}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - focal-network
+
+  metadata-service:
+    build: ./image-metadata-service
+    container_name: focal-metadata
+    environment:
+      - IMAGE_MICROSERVICE_PORT=${IMAGE_MICROSERVICE_PORT}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://focal-postgres:${POSTGRES_PORT}/metadata_db
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_USERNAME=${RABBITMQ_DEFAULT_USER}
+      - SPRING_RABBITMQ_PASSWORD=${RABBITMQ_DEFAULT_PASS}
+      - SPRING_RABBITMQ_PORT=${RABBITMQ_AMQP_PORT}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ACCESS_KEY=${SUPABASE_ACCESS_KEY}
+      - SUPABASE_SECRET_KEY=${SUPABASE_SECRET_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - focal-network
+
+  image-worker:
+    build: ./processing-service
+    container_name: focal-processing
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_USERNAME=${RABBITMQ_DEFAULT_USER}
+      - SPRING_RABBITMQ_PASSWORD=${RABBITMQ_DEFAULT_PASS}
+      - SPRING_RABBITMQ_PORT=${RABBITMQ_AMQP_PORT}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ACCESS_KEY=${SUPABASE_ACCESS_KEY}
+      - SUPABASE_SECRET_KEY=${SUPABASE_SECRET_KEY}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - focal-network
+
+networks:
+  focal-network:
+    driver: bridge
+
+volumes:
+  postgres-data:

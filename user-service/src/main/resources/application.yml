@@ -1,14 +1,14 @@
 server:
-  port: 8081
+  port: ${USER_MICROSERVICE_PORT}
 
 spring:
   application:
     name: user-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/identity_db
-    username: admin
-    password: password123
+    url: ${POSTGRES_URL}/identity_db
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
 
   jpa:
     hibernate:
@@ -16,8 +16,8 @@ spring:
     show-sql: true
 
 jwt:
-  secret: "YOUR_SUPER_SECRET_KEY_THAT_MUST_BE_AT_LEAST_256_BITS_LONG_TO_BE_SECURE"
-  expiration-ms: 86400000 # 24 hours
+  secret: ${JWT_SECRET}
+  expiration-ms: ${JWT_EXPIRATION_MS}
 
 google:
-  client-id: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com" # From Google Cloud Console
+  client-id: ${GOOGLE_CLIENT_ID}

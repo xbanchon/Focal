@@ -23,7 +23,7 @@ public class Image {
     @Column(name = "original_filename", nullable = false)
     private String originalFilename;
 
-    @Column(name = "storage_url", nullable = false, length = 1024)
+    @Column(name = "storage_url", length = 1024)
     private String storageUrl;
 
     @Column(name = "file_size_bytes", nullable = false)

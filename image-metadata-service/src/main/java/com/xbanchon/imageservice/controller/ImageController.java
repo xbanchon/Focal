@@ -1,6 +1,7 @@
 package com.xbanchon.imageservice.controller;
 
 import com.xbanchon.imageservice.dto.ImageResponse;
+import com.xbanchon.imageservice.dto.ProcessingInstructions;
 import com.xbanchon.imageservice.dto.UploadRequest;
 import com.xbanchon.imageservice.entity.Image;
 import com.xbanchon.imageservice.service.ImageService;
@@ -17,30 +18,38 @@ import java.util.List;
 @RequestMapping("/api/v1/images")
 @RequiredArgsConstructor
 public class ImageController {
-    private final ImageService service;
+    private final ImageService imageService;
 
     @PostMapping
-    public ResponseEntity<ImageResponse> startUpload(
+    public ResponseEntity<ImageResponse> initiateUpload(
             @RequestHeader("X-User-Id") UUID userId,
             @Valid @RequestBody UploadRequest request
             ) {
-        Image image = service.startUpload(
+        ImageResponse response = imageService.initiateUpload(
                 userId,
-                request.filename(),
-                request.fileSizeBytes(),
-                request.mimeType()
+                request
         );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(ImageResponse.fromEntity(image));
+                .body(response);
+    }
+
+    @PostMapping("/{imageId}/confirm")
+    public ResponseEntity<Void> confirmUpload(
+            @RequestHeader("X-User-Id") String userId,
+            @PathVariable String imageId,
+            @RequestBody ProcessingInstructions instructions
+    ) {
+        imageService.confirmUpload(UUID.fromString(imageId), UUID.fromString(userId), instructions);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping
     public ResponseEntity<List<ImageResponse>> getUserImages(
             @RequestHeader("X-User-Id") UUID userId
     ) {
-        List<ImageResponse> responses = service.getUserImages(userId).stream()
+        List<ImageResponse> responses = imageService.getUserImages(userId).stream()
                 .map(ImageResponse::fromEntity)
                 .toList();
 
@@ -52,7 +61,7 @@ public class ImageController {
             @RequestHeader("X-User-Id") UUID userId,
             @PathVariable UUID imageId
     ) {
-        Image image = service.getImageDetails(imageId, userId);
+        Image image = imageService.getImageDetails(imageId, userId);
         return ResponseEntity.ok(ImageResponse.fromEntity(image));
     }
 }

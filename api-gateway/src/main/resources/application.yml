@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: identity-service
+              uri: http://identity-service:${USER_MICROSERVICE_PORT}
+              predicates:
+                - Path=/api/v1/auth/**
+
+            - id: metadata-service
+              uri: http://metadata-service:${IMAGE_MICROSERVICE_PORT}
+              predicates:
+                - Path=/api/v1/images/**
+
+jwt:
+  secret: ${JWT_SECRET}

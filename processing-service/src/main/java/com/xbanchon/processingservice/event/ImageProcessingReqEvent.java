@@ -8,5 +8,5 @@ public record ImageProcessingReqEvent(
    UUID userId,
    String originalFilename,
    String mimeType,
-   Map<String, Object> processingInstructions
+   ProcessingInstructions processingInstructions
 ) {}

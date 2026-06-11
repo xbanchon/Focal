@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 import java.net.URI;
@@ -22,10 +23,15 @@ public class StorageConfig {
 
     @Bean
     public S3Presigner s3Presigner() {
+        S3Configuration s3Configuration = S3Configuration.builder()
+                .pathStyleAccessEnabled(true)
+                .build();
+
         return S3Presigner.builder()
-                .endpointOverride(URI.create(supabaseUrl + "/storage/v1/s3"))
+                .endpointOverride(URI.create(supabaseUrl))
                 .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
-                .region(Region.US_EAST_1)
+                .region(Region.US_EAST_2)
+                .serviceConfiguration(s3Configuration)
                 .build();
     }
 }

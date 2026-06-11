@@ -3,20 +3,17 @@ spring:
     name: processing-service
 
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: admin
-    password: password123
+    host: ${SPRING_RABBITMQ_HOST}
+    port: ${SPRING_RABBITMQ_PORT}
+    username: ${SPRING_RABBITMQ_USERNAME}
+    password: ${SPRING_RABBITMQ_PASSWORD}
     listener:
       simple:
         retry:
           enabled: true
-          # Try 3 times total before giving up
           max-retries: 3
-          # Wait 3 seconds after the first failure
-          initial-interval: 3s
-          # Double the wait time after each failure (3s -> 6s -> give up)
-          multiplier: 2.0
+          initial-interval: 3s # Wait time after first failure
+          multiplier: 2.0 # Increment wait time by 2x after each failure
           max-interval: 10s
 
   main:

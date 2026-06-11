@@ -1,7 +1,10 @@
 package com.xbanchon.imageservice.service;
 
 import com.xbanchon.imageservice.config.RabbitMQConfig;
+import com.xbanchon.imageservice.dto.ImageResponse;
+import com.xbanchon.imageservice.dto.UploadRequest;
 import com.xbanchon.imageservice.entity.Image;
+import com.xbanchon.imageservice.dto.ProcessingInstructions;
 import com.xbanchon.imageservice.event.ImageProcessingReqEvent;
 import com.xbanchon.imageservice.repository.ImageRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,9 +33,17 @@ public class ImageService {
     private String bucketName;
 
     @Transactional
-    public String initiateUpload(Image image) {
-        log.info("Initiating image upload for user: {}, filename: {}", image.getUserId(), image.getOriginalFilename());
-        repository.save(image);
+    public ImageResponse initiateUpload(UUID userId, UploadRequest request) {
+        log.info("Initiating image upload for user: {}, filename: {}", userId, request.originalFilename());
+
+        Image image = new Image();
+        image.setUserId(userId);
+        image.setOriginalFilename(request.originalFilename());
+        image.setStatus(Image.ProcessingStatus.PENDING);
+        image.setMimeType(request.mimeType());
+        image.setFileSizeBytes(request.fileSizeBytes());
+
+        image = repository.save(image);
 
         PutObjectRequest objectRequest = PutObjectRequest.builder()
                 .bucket(bucketName)
@@ -45,19 +56,26 @@ public class ImageService {
                 .putObjectRequest(objectRequest)
                 .build();
 
-        return s3Presigner.presignPutObject(presignRequest).url().toString();
+        String uploadUrl = s3Presigner.presignPutObject(presignRequest).url().toString();
+
+        return ImageResponse.fromEntity(image, uploadUrl);
     }
 
     @Transactional
-    public void confirmUpload(UUID imageId, UUID userId) {
+    public void confirmUpload(UUID imageId, UUID userId, ProcessingInstructions instructions) {
         Image image = repository.findByIdAndUserId(imageId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("Image not found"));
+                .orElseThrow(() -> new RuntimeException("Image not found"));
+
+        // 2. Update status
+        image.setStatus(Image.ProcessingStatus.PROCESSING);
+        repository.save(image);
 
         ImageProcessingReqEvent event = new ImageProcessingReqEvent(
                 image.getId(),
                 image.getUserId(),
                 image.getOriginalFilename(),
-                image.getMimeType()
+                image.getMimeType(),
+                instructions
         );
 
         rabbitTemplate.convertAndSend(
@@ -70,7 +88,7 @@ public class ImageService {
     }
 
     @Transactional
-    public Image updateStatusToCompleted(UUID imageId, UUID userId, String finalStorageUrl) {
+    public void updateStatusToCompleted(UUID imageId, UUID userId, String finalStorageUrl) {
         log.info("Updating status to COMPLETED for image: {}", imageId);
 
         Image image = repository.findByIdAndUserId(imageId, userId)
@@ -80,8 +98,21 @@ public class ImageService {
         image.setStorageUrl(finalStorageUrl);
 
         log.info("Image {} for User {} successfully marked as COMPLETED", imageId, userId);
+    }
 
-        return image;
+    @Transactional
+    public void updateStatusToFailed(UUID imageId, UUID userId, String errorMessage) {
+        log.error("Updating status to FAILED for image: {} due to error: {}", imageId, errorMessage);
+
+        Image image = repository.findByIdAndUserId(imageId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Image not found or unauthorized access"));
+
+        // Update the status to FAILED
+        image.setStatus(Image.ProcessingStatus.FAILED);
+
+        repository.save(image);
+
+        log.info("Image {} for User {} successfully marked as FAILED", imageId, userId);
     }
 
     @Transactional(readOnly = true)

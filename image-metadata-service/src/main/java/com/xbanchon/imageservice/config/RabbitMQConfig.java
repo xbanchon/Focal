@@ -14,9 +14,13 @@ public class RabbitMQConfig {
     public static final String QUEUE_NAME = "image.process.queue";
     public static final String ROUTING_KEY = "image.process.request";
 
-    //Dead Letter Queue
+    // Dead Letter Queue
     public static final String DLQ_NAME = "image.process.dlq";
     public static final String DLQ_ROUTING_KEY = "image.process.dlq.routing";
+
+    // Process Completed Queue
+    public static final String COMPLETED_QUEUE_NAME = "image.completed.queue";
+    public static final String COMPLETED_ROUTING_KEY = "image.process.completed";
 
     @Bean
     public Queue deadLetterQueue() { return new Queue(DLQ_NAME, true); }
@@ -42,6 +46,16 @@ public class RabbitMQConfig {
     @Bean
     public Binding binding(Queue imageProcessQueue, DirectExchange imageExchange) {
         return BindingBuilder.bind(imageProcessQueue).to(imageExchange).with(ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue completedQueue() {
+        return new Queue(COMPLETED_QUEUE_NAME, true);
+    }
+
+    @Bean
+    public Binding completedBinding(Queue completedQueue, DirectExchange imageExchange) {
+        return BindingBuilder.bind(completedQueue).to(imageExchange).with(COMPLETED_ROUTING_KEY);
     }
 
     @Bean

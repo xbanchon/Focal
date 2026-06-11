@@ -1,6 +1,7 @@
 package com.xbanchon.processingservice.listener;
 
-import com.xbanchon.processingservice.event.*;
+import com.xbanchon.processingservice.event.ImageProcessingReqEvent;
+import com.xbanchon.processingservice.event.ProcessingCompletedEvent;
 import com.xbanchon.processingservice.service.ImageProcessingEngine;
 import com.xbanchon.processingservice.service.S3StorageService;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +33,7 @@ public class ImageProcessingListener {
             tempOutput = Files.createTempFile("processed_", "_" + event.imageId());
 
             // Download raw file from object storage
-            String rawFileKey = "raw/" + event.imageId();
+            String rawFileKey = event.imageId().toString();
             storageService.downloadFile(rawFileKey, tempInput);
 
             // Execute processing pipeline

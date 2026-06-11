@@ -24,10 +24,11 @@ public class StorageConfig {
     @Bean
     public S3Client s3Client() {
         return S3Client.builder()
-                .endpointOverride(URI.create(supabaseUrl + "/storage/v1/s3"))
+                .endpointOverride(URI.create(supabaseUrl))
                 .credentialsProvider(StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(accessKey, secretKey)))
-                .region(Region.US_EAST_1)
+                .region(Region.US_EAST_2)
+                .forcePathStyle(true)
                 .build();
     }
 }

@@ -8,6 +8,8 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 @Slf4j
@@ -22,6 +24,12 @@ public class S3StorageService {
 
     public void downloadFile(String fileKey, Path destinationPath) {
         log.info("Downloading {} from S3...", fileKey);
+
+        try{
+            Files.deleteIfExists(destinationPath);
+        } catch (IOException e) {
+            log.warn("Could not delete existing temp file before download: {}", e.getMessage());
+        }
 
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(bucketName)

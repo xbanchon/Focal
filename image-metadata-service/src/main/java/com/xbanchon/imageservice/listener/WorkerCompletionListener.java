@@ -19,9 +19,9 @@ public class WorkerCompletionListener {
     public void handleProcessingCompletion(ProcessingCompletedEvent event) {
         if (event.success()) {
             service.updateStatusToCompleted(event.imageId(), event.userId(), event.finalStorageUrl());
-            log.info("Successfully updated database for image: {}", event.imageId());
+            log.info("Successfully updated status to COMPLETED for image: {}", event.imageId());
         } else {
-            // service.updateStatusToFailed(event.imageId(), event.errorMessage());
+            service.updateStatusToFailed(event.imageId(), event.userId(), event.errorMessage());
             log.error("Worker failed to process image {}: {}", event.imageId(), event.errorMessage());
         }
     }
